@@ -175,8 +175,27 @@ class ThermostatDevice(ClimateEntity):
     def update(self):
         """Update local state."""
         self.thermostat.update()
-        self._setpoint = self.thermostat.setpoint
-        self._temperature = self.thermostat.temperature
-        self._state = self.thermostat.state
-        self._mode = self.thermostat.mode
         self._available = self.thermostat.available
+        
+        if self._available:
+            self._setpoint = self.thermostat.setpoint
+            self._temperature = self.thermostat.temperature
+            self._state = self.thermostat.state
+            self._mode = self.thermostat.mode
+        else:
+            self._setpoint = None
+            self._temperature = None
+            self._state = None
+            self._mode = None
+        data = self.thermostat.status()
+        # _LOGGER.warning(f"Terneo raw status response: {data}")
+        if data:
+            try:
+                self._setpoint = self.thermostat.get_setpoint(data)
+                self._temperature = self.thermostat.get_temperature(data)
+                self._mode = self.thermostat.get_mode(data)
+                self._state = self.thermostat.get_state(data)
+            except Exception as e:
+                _LOGGER.error(f"Error parsing status: {e}, data: {data}")
+        else:
+            _LOGGER.error("No data received from thermostat!")
