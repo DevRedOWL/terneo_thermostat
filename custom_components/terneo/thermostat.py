@@ -157,6 +157,9 @@ class Thermostat:
 
     @staticmethod
     def get_temperature(data):
+        """Get temperature from data."""
+        if 't.1' not in data:
+            return None
         return float(data['t.1']) / 16
 
     @property
@@ -177,6 +180,9 @@ class Thermostat:
 
     @staticmethod
     def get_setpoint(data):
+        """Get setpoint from data."""
+        if 't.5' not in data:
+            return None
         return float(data['t.5']) / 16
 
     @property
@@ -195,6 +201,7 @@ class Thermostat:
         return self._mode
 
     def get_mode(self, data):
+        """Get mode from data."""
         if 'f.16' in data:  # in firmware 2.4 was added new flag for power off/on
             is_on = int(data['f.16']) == 0
         else:
@@ -202,6 +209,8 @@ class Thermostat:
 
         if not is_on:
             return -1
+        elif 'm.1' not in data:
+            return None
         else:
             return int(data['m.1'])
 
@@ -234,6 +243,9 @@ class Thermostat:
     
     @staticmethod
     def get_state(data):
+        """Get state from data."""
+        if 'f.0' not in data:
+            return None
         return int(data['f.0']) == 1
 
     def turn_on(self):
@@ -243,9 +255,18 @@ class Thermostat:
         return self.post(json=dict(sn=self.sn, par=[[125, 7, "1"]]))
 
     def update(self):
+        """Update local state."""
         data = self.status()
         if data:
-            self._setpoint = self.get_setpoint(data)
-            self._temperature = self.get_temperature(data)
-            self._mode = self.get_mode(data)
-            self._state = self.get_state(data)
+            try:
+                self._setpoint = self.get_setpoint(data)
+                self._temperature = self.get_temperature(data)
+                self._mode = self.get_mode(data)
+                self._state = self.get_state(data)
+                self._available = True
+            except Exception as e:
+                _LOGGER.error(f"Error parsing status: {e}, data: {data}")
+                self._available = False
+        else:
+            self._available = False
+            _LOGGER.error("No data received from thermostat!")
